@@ -1,0 +1,24 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+
+# Android
+.gradle/
+local.properties
+*.keystore
+*.jks
+*.pub
+bin/
+gen/
+
+# Senhas e chaves (Segurança para o seu TG)
+.env
+auth_secrets.h
+secrets.h
+
+# Sistema
+.DS_Store
+Thumbs.db
