@@ -108,10 +108,10 @@ class _AddAlarmDialogState extends State<AddAlarmDialog> {
     final isEditing = widget.alarmToEdit != null;
     final isDark = theme.brightness == Brightness.dark;
 
-    final textColor = isDark ? Colors.white : theme.colorScheme.onBackground;
-    final secondaryTextColor = isDark ? Colors.white54 : theme.colorScheme.onBackground.withOpacity(0.54);
+    final textColor = isDark ? Colors.white : theme.colorScheme.onSurface;
+    final secondaryTextColor = isDark ? Colors.white54 : theme.colorScheme.onSurface.withValues(alpha: 0.54);
     final dayBgUnselected = isDark ? Colors.grey.shade700 : Colors.grey.shade300;
-    final dayTextUnselected = isDark ? Colors.white : theme.colorScheme.onBackground;
+    final dayTextUnselected = isDark ? Colors.white : theme.colorScheme.onSurface;
     final dividerColor = isDark ? Colors.white10 : Colors.black12;
 
     return Container(
@@ -157,7 +157,7 @@ class _AddAlarmDialogState extends State<AddAlarmDialog> {
                 borderRadius: BorderRadius.circular(10.0),
               ),
               enabledBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: textColor.withOpacity(0.54)),
+                borderSide: BorderSide(color: textColor.withValues(alpha: 0.54)),
                 borderRadius: BorderRadius.circular(10.0),
               ),
             ),

@@ -24,26 +24,86 @@ class _MainScreenState extends State<MainScreen> {
     const SettingsTab(), // 3: Configurações
   ];
 
-  // Título do AppBar para cada aba
-  final List<String> _titles = [
-    'Appetite - Conexão',
-    'Appetite - Alarmes',
-    'Appetite - Histórico',
-    'Appetite - Configurações',
-  ];
-
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
   }
 
+  Widget _buildAppBarTitle(int index) {
+    final theme = Theme.of(context);
+
+    switch (index) {
+      case 0: // Conexão
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              'Appetite',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ],
+        );
+      case 1: // Alarmes
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.alarm_on, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'Alarmes',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        );
+      case 2: // Histórico
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.history, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'Histórico',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        );
+      case 3: // Configurações
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.settings, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'Configurações',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        );
+      default:
+        return const Text('Appetite');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final elevation = _selectedIndex == 0 ? 2.0 : 0.0;
+
     return Scaffold(
-      // --- CORREÇÃO DE OVERFLOW NA APPBAR ---
-      // Envolvemos a AppBar em um MediaQuery para travar a escala da fonte em 1.0.
-      // Isso impede que o título cresça demais e quebre o layout da barra superior.
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kToolbarHeight),
         child: MediaQuery(
@@ -51,8 +111,11 @@ class _MainScreenState extends State<MainScreen> {
             textScaler: const TextScaler.linear(1.0),
           ),
           child: AppBar(
-            title: Text(_titles[_selectedIndex]),
+            title: _buildAppBarTitle(_selectedIndex),
             centerTitle: true,
+            elevation: elevation,
+            shadowColor: theme.primaryColor.withValues(alpha: 0.3),
+            surfaceTintColor: Colors.transparent,
           ),
         ),
       ),
