@@ -76,8 +76,36 @@ ThemeData buildAppTheme(Color primaryColor, double fontSizeFactor, Brightness br
 
     // Aplica o fator de escala de fonte apenas no corpo do texto
     // (A AppBar e a BottomNav estão protegidas pelos MediaQueries nas suas respectivas views)
-    textTheme: fontTheme.apply(fontSizeFactor: fontSizeFactor),
-    
+    textTheme: _scaleTextTheme(fontTheme, fontSizeFactor),
+
     useMaterial3: true,
+  );
+}
+
+///
+/// Scale a [TextStyle] by the given [factor] while ensuring a non-null font size.
+TextStyle _scaleTextStyle(TextStyle? style, double factor) {
+  final double size = (style?.fontSize ?? 14) * factor;
+  return style!.copyWith(fontSize: size);
+}
+
+/// Create a [TextTheme] with each style scaled by [factor].
+TextTheme _scaleTextTheme(TextTheme base, double factor) {
+  return TextTheme(
+    displayLarge: _scaleTextStyle(base.displayLarge, factor),
+    displayMedium: _scaleTextStyle(base.displayMedium, factor),
+    displaySmall: _scaleTextStyle(base.displaySmall, factor),
+    headlineLarge: _scaleTextStyle(base.headlineLarge, factor),
+    headlineMedium: _scaleTextStyle(base.headlineMedium, factor),
+    headlineSmall: _scaleTextStyle(base.headlineSmall, factor),
+    titleLarge: _scaleTextStyle(base.titleLarge, factor),
+    titleMedium: _scaleTextStyle(base.titleMedium, factor),
+    titleSmall: _scaleTextStyle(base.titleSmall, factor),
+    bodyLarge: _scaleTextStyle(base.bodyLarge, factor),
+    bodyMedium: _scaleTextStyle(base.bodyMedium, factor),
+    bodySmall: _scaleTextStyle(base.bodySmall, factor),
+    labelLarge: _scaleTextStyle(base.labelLarge, factor),
+    labelMedium: _scaleTextStyle(base.labelMedium, factor),
+    labelSmall: _scaleTextStyle(base.labelSmall, factor),
   );
 }

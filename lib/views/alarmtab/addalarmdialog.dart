@@ -106,13 +106,20 @@ class _AddAlarmDialogState extends State<AddAlarmDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isEditing = widget.alarmToEdit != null;
+    final isDark = theme.brightness == Brightness.dark;
+
+    final textColor = isDark ? Colors.white : theme.colorScheme.onBackground;
+    final secondaryTextColor = isDark ? Colors.white54 : theme.colorScheme.onBackground.withOpacity(0.54);
+    final dayBgUnselected = isDark ? Colors.grey.shade700 : Colors.grey.shade300;
+    final dayTextUnselected = isDark ? Colors.white : theme.colorScheme.onBackground;
+    final dividerColor = isDark ? Colors.white10 : Colors.black12;
 
     return Container(
-      height: MediaQuery.of(context).size.height * 0.9, 
+      height: MediaQuery.of(context).size.height * 0.9,
       padding: const EdgeInsets.all(24.0),
-      decoration: const BoxDecoration(
-        color: AppColors.darkBackground,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -122,35 +129,35 @@ class _AddAlarmDialogState extends State<AddAlarmDialog> {
             style: theme.textTheme.headlineSmall?.copyWith(color: theme.primaryColor),
             textAlign: TextAlign.center,
           ),
-          const Divider(color: Colors.white10),
-          
+          Divider(color: dividerColor),
+
           // 1. SELEÇÃO DE HORA
           ListTile(
             leading: Icon(Icons.access_time, color: theme.primaryColor),
             title: Text(
               'Hora: ${_selectedTime.format(context)}',
-              style: theme.textTheme.titleLarge,
+              style: theme.textTheme.titleLarge?.copyWith(color: textColor),
             ),
-            trailing: const Icon(Icons.edit, color: Colors.white70),
+            trailing: Icon(Icons.edit, color: secondaryTextColor),
             onTap: _selectTime,
           ),
           const SizedBox(height: 16),
-          
+
           // 2. SELEÇÃO DE GRAMAS
           TextField(
             controller: _gramsController,
             keyboardType: TextInputType.number,
-            style: theme.textTheme.titleLarge?.copyWith(color: Colors.white),
+            style: theme.textTheme.titleLarge?.copyWith(color: textColor),
             decoration: InputDecoration(
               labelText: 'Quantidade em Gramas',
               labelStyle: TextStyle(color: theme.primaryColor),
               suffixText: 'g',
-              suffixStyle: theme.textTheme.titleMedium,
+              suffixStyle: theme.textTheme.titleMedium?.copyWith(color: textColor),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10.0),
               ),
               enabledBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: Colors.white54),
+                borderSide: BorderSide(color: textColor.withOpacity(0.54)),
                 borderRadius: BorderRadius.circular(10.0),
               ),
             ),
@@ -158,12 +165,12 @@ class _AddAlarmDialogState extends State<AddAlarmDialog> {
           const SizedBox(height: 24),
 
           // 3. SELEÇÃO DE DIAS DA SEMANA
-          Text('Dias da Semana:', style: theme.textTheme.titleMedium),
+          Text('Dias da Semana:', style: theme.textTheme.titleMedium?.copyWith(color: textColor)),
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(7, (index) {
-              final day = index + 1; // 1 = Segunda, 7 = Domingo
+              final day = index + 1;
               final dayName = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'][index];
               final isSelected = _selectedDays.contains(day);
 
@@ -174,13 +181,13 @@ class _AddAlarmDialogState extends State<AddAlarmDialog> {
                   height: 36,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: isSelected ? theme.primaryColor : Colors.grey.shade700,
+                    color: isSelected ? theme.primaryColor : dayBgUnselected,
                     shape: BoxShape.circle,
                   ),
                   child: Text(
                     dayName,
                     style: TextStyle(
-                      color: isSelected ? Colors.black : Colors.white,
+                      color: isSelected ? Colors.black : dayTextUnselected,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -189,12 +196,12 @@ class _AddAlarmDialogState extends State<AddAlarmDialog> {
             }),
           ),
           const SizedBox(height: 24),
-          
+
           // 4. REPETIR SEMANALMENTE
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Repetir Semanalmente:', style: theme.textTheme.titleMedium),
+              Text('Repetir Semanalmente:', style: theme.textTheme.titleMedium?.copyWith(color: textColor)),
               Switch(
                 value: _isRepeatingWeekly,
                 onChanged: (val) {
@@ -206,9 +213,9 @@ class _AddAlarmDialogState extends State<AddAlarmDialog> {
               ),
             ],
           ),
-          
+
           const Spacer(),
-          
+
           // Botão de Salvar/Atualizar
           ElevatedButton(
             onPressed: _saveAlarm,
@@ -223,11 +230,11 @@ class _AddAlarmDialogState extends State<AddAlarmDialog> {
             ),
           ),
           const SizedBox(height: 8),
-          
+
           // Botão de Cancelar
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+            child: Text('Cancelar', style: TextStyle(color: secondaryTextColor)),
           ),
         ],
       ),

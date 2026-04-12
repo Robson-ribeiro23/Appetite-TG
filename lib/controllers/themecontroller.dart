@@ -68,10 +68,11 @@ class ThemeController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void resetToDefaults() {
+  void resetToDefaults() async {
     _primaryColor = Colors.blue;
     _fontSizeFactor = 1.0;
     _themeMode = ThemeMode.dark;
+    await _saveSettings(); // Salva o tema escuro no disco
     notifyListeners(); // Atualiza a tela imediatamente
   }
   
