@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:appetite/services/provisioningservice.dart';
-import 'package:appetite/controllers/homecontroller.dart'; // Para tentar o MQTT no sucesso
+import 'package:appetite/controllers/feedercontroller.dart';
 
 enum ProvisioningState {
   initial,
-  userConnectingToAp, // Usuário deve mudar o Wi-Fi
+  userConnectingToAp,
   sendingCredentials,
-  waitingForWifiConnection, // ESP32 está tentando conectar ao Wi-Fi doméstico
+  waitingForWifiConnection,
   success,
   failure,
 }
@@ -17,18 +17,19 @@ class ProvisioningController extends ChangeNotifier {
   String _message =
       'Bem-vindo! Para começar, prepare as credenciais do seu Wi-Fi doméstico.';
 
-  // Referência ao HomeController (para disparar a conexão MQTT após o setup)
-  final HomeController homeController;
+  final FeederController feederController;
 
-  ProvisioningController({required this.homeController});
+  String _feederName = 'Alimentador 01';
+
+  ProvisioningController({required this.feederController});
 
   ProvisioningState get state => _state;
   String get message => _message;
 
-  // Nome da rede que o ESP32 deve criar (Deve ser igual ao ESP32!)
   static const String esp32ApName = 'Appetite_SETUP';
 
-  void startSetup() {
+  void startSetup(String name) {
+    _feederName = name;
     _state = ProvisioningState.userConnectingToAp;
     _message =
         '1. Desconecte o Wi-Fi atual e conecte-se à rede "$esp32ApName".';
@@ -38,7 +39,7 @@ class ProvisioningController extends ChangeNotifier {
   Future<void> sendWifiCredentials(String ssid, String password) async {
     _state = ProvisioningState.sendingCredentials;
     _message =
-        '2. Enviando credenciais do Wi-Fi doméstico para o dispositivo...';
+        '2. Enviando credenciais do Wi-Fi doméstico para o dispositivo ($_feederName)...';
     notifyListeners();
 
     bool success = await _service.sendCredentials(ssid, password);
@@ -49,7 +50,6 @@ class ProvisioningController extends ChangeNotifier {
           '3. Credenciais enviadas! Aguarde o dispositivo reiniciar e conectar à sua rede...';
       notifyListeners();
 
-      // Simula o tempo que o ESP32 leva para reiniciar e conectar (10 segundos)
       await Future.delayed(const Duration(seconds: 10));
 
       _state = ProvisioningState.success;
@@ -57,8 +57,8 @@ class ProvisioningController extends ChangeNotifier {
           'Configuração concluída! Voltando ao aplicativo e testando a conexão remota...';
       notifyListeners();
 
-      // CRÍTICO: Tenta iniciar a conexão MQTT remota após o provisionamento
-      homeController.attemptConnection();
+      // Re-descobre feeders após o provisionamento
+      feederController.rediscoverFeeders();
     } else {
       _state = ProvisioningState.failure;
       _message =

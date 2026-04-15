@@ -18,24 +18,19 @@ class MqttService {
   static const String username = 'appetite_admin';
   static const String password = 'Mkiujn123';
 
-  static const String topicManualFeed =
-      'appetite/device/alimentador_01/command/manual';
-  static const String topicAlarms =
-      'appetite/device/alimentador_01/command/alarms';
-  static const String topicStatus = 'appetite/device/alimentador_01/status';
-
   late MqttServerClient _client;
   bool _isConnected = false;
+  final Set<String> _subscribedTopics = {};
 
   // Stream de status da conexão (para reconexão automática)
   final StreamController<MqttServiceStatus> _statusController =
       StreamController<MqttServiceStatus>.broadcast();
   Stream<MqttServiceStatus> get statusStream => _statusController.stream;
 
-  // Stream de mensagens do ESP32
-  final StreamController<String> _messageController =
-      StreamController<String>.broadcast();
-  Stream<String> get messageStream => _messageController.stream;
+  // Stream de mensagens do ESP32 — emite {topic, payload}
+  final StreamController<Map<String, String>> _messageController =
+      StreamController<Map<String, String>>.broadcast();
+  Stream<Map<String, String>> get messageStream => _messageController.stream;
 
   Timer? _reconnectTimer;
   static const Duration _reconnectInterval = Duration(seconds: 5);
@@ -68,6 +63,38 @@ class MqttService {
     };
   }
 
+  void _listenToUpdates() {
+    _client.updates!.listen((dynamic c) {
+      final MqttPublishMessage recMess = c[0].payload;
+
+      if (recMess.header!.retain) {
+        if (kDebugMode) print('MQTT: Mensagem retida ignorada.');
+        return;
+      }
+
+      final pt =
+          MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
+      _messageController.add({'topic': c[0].topic, 'payload': pt});
+    });
+  }
+
+  /// Subscreve a um tópico arbitrário (ex: status de um alimentador)
+  void subscribeToTopic(String topic) {
+    if (!_subscribedTopics.contains(topic)) {
+      _subscribedTopics.add(topic);
+      if (_isConnected) {
+        _client.subscribe(topic, MqttQos.atLeastOnce);
+      }
+    }
+  }
+
+  /// Re-aplica subscrições após reconexão
+  void _resubscribe() {
+    for (final topic in _subscribedTopics) {
+      _client.subscribe(topic, MqttQos.atLeastOnce);
+    }
+  }
+
   void _attemptReconnect() {
     _reconnectTimer?.cancel();
     _reconnectTimer = Timer.periodic(_reconnectInterval, (timer) async {
@@ -93,7 +120,8 @@ class MqttService {
 
     if (_client.connectionStatus!.state == MqttConnectionState.connected) {
       _isConnected = true;
-      _client.subscribe(topicStatus, MqttQos.atLeastOnce);
+      _resubscribe();
+      _listenToUpdates();
       _statusController.add(MqttServiceStatus.connected);
       if (kDebugMode) print('MQTT: Reconectado com sucesso!');
       return true;
@@ -118,24 +146,9 @@ class MqttService {
 
     if (_client.connectionStatus!.state == MqttConnectionState.connected) {
       _isConnected = true;
-      _client.subscribe(topicStatus, MqttQos.atLeastOnce);
+      _resubscribe();
+      _listenToUpdates();
       _statusController.add(MqttServiceStatus.connected);
-
-      _client.updates!.listen((dynamic c) {
-        final MqttPublishMessage recMess = c[0].payload;
-
-        if (recMess.header!.retain) {
-          if (kDebugMode) print('MQTT: Mensagem velha ignorada.');
-          return;
-        }
-
-        final pt =
-            MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
-        if (c[0].topic == topicStatus) {
-          _messageController.add(pt);
-        }
-      });
-
       return true;
     } else {
       _client.disconnect();
@@ -144,21 +157,24 @@ class MqttService {
     }
   }
 
-  Future<bool> publishCommand(String topicType, String jsonPayload) async {
-    // Se desconectado, tenta reconectar uma vez antes
+  Future<bool> publishCommand({
+    required String topic,
+    required String payload,
+  }) async {
     if (!_isConnected) {
       if (kDebugMode) {
         print('MQTT: Tentando reconectar antes de publicar...');
         _reconnectTimer?.cancel();
         bool success = await _reconnect();
         if (!success) return false;
+      } else {
+        return false;
       }
     }
 
-    String topic = topicType.contains("manual") ? topicManualFeed : topicAlarms;
     try {
       final builder = MqttClientPayloadBuilder();
-      builder.addString(jsonPayload);
+      builder.addString(payload);
       _client.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
       return true;
     } catch (e) {

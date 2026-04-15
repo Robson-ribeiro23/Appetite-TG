@@ -14,6 +14,7 @@ class HistoryEntry {
   final HistoryType type;
   final String description;
   final double? gramsDispensed;
+  final String? feederId;
 
   HistoryEntry({
     required this.id,
@@ -21,16 +22,18 @@ class HistoryEntry {
     required this.type,
     required this.description,
     this.gramsDispensed,
+    this.feederId,
   });
 
   // Salvar
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'timestamp': timestamp.toIso8601String(), // Salva data como texto
-      'type': type.index, // Salva o índice do Enum (0, 1, 2)
+      'timestamp': timestamp.toIso8601String(),
+      'type': type.index,
       'description': description,
       'gramsDispensed': gramsDispensed,
+      'feederId': feederId,
     };
   }
 
@@ -39,9 +42,10 @@ class HistoryEntry {
     return HistoryEntry(
       id: json['id'],
       timestamp: DateTime.parse(json['timestamp']),
-      type: HistoryType.values[json['type']], // Recupera o Enum pelo índice
+      type: HistoryType.values[json['type']],
       description: json['description'],
       gramsDispensed: json['gramsDispensed'] != null ? (json['gramsDispensed'] as num).toDouble() : null,
+      feederId: json['feederId'] as String?,
     );
   }
 }

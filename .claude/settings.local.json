@@ -10,7 +10,8 @@
       "Bash(bash -c 'JAVA_HOME=\"\"\"\"C:/Program Files/Android/Android Studio/jbr\"\"\"\" flutter pub deps 2>&1')",
       "Bash(bash -c 'JAVA_HOME=\"\"\"\"C:/Program Files/Android/Android Studio/jbr\"\"\"\" flutter build apk --debug 2>&1')",
       "Bash(bash -c 'JAVA_HOME=\"\"C:/Program Files/Android/Android Studio/jbr\"\" flutter analyze 2>&1')",
-      "Bash(bash -c './gradlew clean 2>&1')"
+      "Bash(bash -c './gradlew clean 2>&1')",
+      "Bash(flutter analyze:*)"
     ]
   }
 }

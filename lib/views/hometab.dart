@@ -1,11 +1,10 @@
-// lib/views/hometab.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:appetite/controllers/homecontroller.dart';
-// REATIVAMOS O IMPORT DA TELA DE PROVISIONAMENTO:
-import 'package:appetite/views/widgets/provisioningscreen.dart';
+import 'package:appetite/controllers/feedercontroller.dart';
 import 'package:appetite/controllers/themecontroller.dart';
+import '../views/widgets/provisioningscreen.dart';
+import '../models/feedermodel.dart';
 
 class HomeTab extends StatefulWidget {
   const HomeTab({super.key});
@@ -17,14 +16,6 @@ class HomeTab extends StatefulWidget {
 class _HomeTabState extends State<HomeTab> {
   final TextEditingController _gramsController = TextEditingController();
   bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<HomeController>(context, listen: false).attemptConnection();
-    });
-  }
 
   @override
   void dispose() {
@@ -45,7 +36,7 @@ class _HomeTabState extends State<HomeTab> {
                 color: Colors.green, size: 60),
             const SizedBox(height: 16),
             Text(
-              "Sucesso!",
+              'Sucesso!',
               style: Theme.of(context)
                   .textTheme
                   .titleLarge
@@ -74,7 +65,7 @@ class _HomeTabState extends State<HomeTab> {
       return;
     }
 
-    if (controller.status == ConnectionStatus.connected) {
+    if (controller.isConnected) {
       setState(() => _isLoading = true);
 
       bool success = await controller.manualFeed(grams);
@@ -98,229 +89,468 @@ class _HomeTabState extends State<HomeTab> {
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
-    final themeController = Provider.of<ThemeController>(context);
     final theme = Theme.of(context);
+    final themeController = Provider.of<ThemeController>(context);
+    final feederController =
+        Provider.of<FeederController>(context);
+    final homeController =
+        Provider.of<HomeController>(context);
 
-    return Consumer<HomeController>(
-      builder: (context, controller, child) {
-        final statusEnum = controller.status;
-        final statusMessage = controller.message;
-        final isConnected = (statusEnum == ConnectionStatus.connected);
+    // Tela de carregamento: mostra spinner enquanto busca alimentadores
+    bool shouldShowLoading =
+        feederController.connectionState == FeederConnectionState.discovering &&
+            feederController.feeders.every(
+                (f) => f.status != FeederStatus.online);
 
-        return Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    if (shouldShowLoading) {
+      return _buildLoadingScreen(theme, themeController.primaryColor);
+    }
+
+    // Se tem selecionado e conectado → mostra tela de alimentação
+    if (homeController.isConnected && feederController.selectedFeeder != null) {
+      return _buildManualFeedView(
+        context,
+        theme,
+        themeController,
+        homeController,
+        feederController,
+      );
+    }
+
+    // Seleção de alimentadores
+    return _buildFeederSelectionView(
+      context,
+      theme,
+      themeController,
+      homeController,
+      feederController,
+    );
+  }
+
+  Widget _buildLoadingScreen(ThemeData theme, Color themeColor) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 60,
+            height: 60,
+            child: CircularProgressIndicator(
+              strokeWidth: 4,
+              valueColor: AlwaysStoppedAnimation<Color>(themeColor),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Buscando alimentadores...',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.textTheme.bodyLarge?.color,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Aguardando resposta do servidor MQTT',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeederSelectionView(
+    BuildContext context,
+    ThemeData theme,
+    ThemeController themeController,
+    HomeController homeController,
+    FeederController feederController,
+  ) {
+    final feeders = feederController.feeders;
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Status header
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            decoration: BoxDecoration(
+              color: themeController.primaryColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: themeController.primaryColor.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Row(
               children: [
-                // === STATUS DE CONEXÃO ===
-                _buildDynamicStatusUI(context, statusEnum, statusMessage,
-                    themeController.primaryColor),
-
-                const SizedBox(height: 16),
-
-                // === NOVO BOTÃO DE PROVISIONAMENTO ===
-                if (statusEnum == ConnectionStatus.error ||
-                    statusEnum == ConnectionStatus.disconnected) ...[
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const ProvisioningScreen()),
-                        );
-                      },
-                      icon: const Icon(Icons.wifi_find_rounded),
-                      label: const Text("CONFIGURAR NOVO ALIMENTADOR"),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        side: BorderSide(
-                            color: themeController.primaryColor
-                                .withValues(alpha: 0.5)),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                ],
-
-                const SizedBox(height: 32),
-
-                // === ÁREA DE MANUTENÇÃO ===
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.orange.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(16),
-                    border:
-                        Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                    color: themeController.primaryColor.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
                   ),
+                  child: Icon(
+                    Icons.router,
+                    color: themeController.primaryColor,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.build_circle_outlined,
-                              color: Colors.orange),
-                          const SizedBox(width: 10),
-                          Text(
-                            "Manutenção",
-                            style: theme.textTheme.titleMedium?.copyWith(
-                                color: Colors.orange,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
                       Text(
-                        "Use para preencher o tubo após abastecer o reservatório.",
-                        style: theme.textTheme.bodySmall,
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: isConnected && !_isLoading
-                              ? () => controller.fillTube()
-                              : null,
-                          icon: const Icon(Icons.plumbing),
-                          label: const Text("PREENCHER SISTEMA"),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.orange,
-                            side: const BorderSide(color: Colors.orange),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10)),
-                          ),
+                        'Meus Alimentadores',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          color: themeController.primaryColor,
+                          fontWeight: FontWeight.bold,
                         ),
+                      ),
+                      Text(
+                        '${feeders.length} alimentador(es) cadastrado(s)',
+                        style: theme.textTheme.bodySmall,
                       ),
                     ],
                   ),
                 ),
-
-                const SizedBox(height: 32),
-
-                // === ALIMENTAÇÃO MANUAL ===
-                Text(
-                  'Alimentação Manual',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: themeController.primaryColor),
-                ),
-                const SizedBox(height: 16),
-
-                TextField(
-                  controller: _gramsController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Quantidade (gramas)',
-                    hintText: 'Ex: 50',
-                    suffixText: 'g',
-                    border: OutlineInputBorder(),
-                  ),
-                  enabled: isConnected && !_isLoading,
-                ),
-
-                const SizedBox(height: 16),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: isConnected && !_isLoading
-                        ? () => _performManualFeed(controller)
-                        : null,
-                    icon: _isLoading
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2))
-                        : const Icon(Icons.send_rounded),
-                    label: Text(_isLoading ? 'ENVIANDO...' : 'ALIMENTAR AGORA'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: themeController.primaryColor,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      textStyle: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: () =>
+                      feederController.rediscoverFeeders(),
+                  tooltip: 'Verificar novamente',
                 ),
               ],
             ),
           ),
-        );
-      },
-    );
-  }
 
-  Widget _buildDynamicStatusUI(BuildContext context, ConnectionStatus status,
-      String message, Color themeColor) {
-    final theme = Theme.of(context);
-    IconData icon;
-    Color statusColor;
-    String friendlyMessage;
+          const SizedBox(height: 16),
 
-    switch (status) {
-      case ConnectionStatus.connected:
-        icon = Icons.wifi_tethering;
-        statusColor = Colors.green;
-        friendlyMessage = "Conectado";
-        break;
-      case ConnectionStatus.connecting:
-        icon = Icons.sync;
-        statusColor = Colors.orange;
-        friendlyMessage = "Buscando...";
-        break;
-      case ConnectionStatus.error:
-        icon = Icons.wifi_off;
-        statusColor = Colors.red;
-        friendlyMessage = "Offline";
-        break;
-      default:
-        icon = Icons.power_off;
-        statusColor = Colors.grey;
-        friendlyMessage = "Desconectado";
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-      decoration: BoxDecoration(
-        color: statusColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: statusColor.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.2),
-                shape: BoxShape.circle),
-            child: Icon(icon, color: statusColor, size: 32),
-          ),
-          const SizedBox(width: 16),
+          // Lista de feeders
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(friendlyMessage,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                        color: statusColor, fontWeight: FontWeight.bold)),
-                Text(message,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis),
-              ],
+            child: feeders.isEmpty
+                ? Center(
+                    child: Text(
+                      'Nenhum alimentador cadastrado.',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  )
+                : ListView.separated(
+                    itemCount: feeders.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final feeder = feeders[index];
+                      final isSelected =
+                          feederController.selectedFeeder?.id == feeder.id;
+                      return _buildFeederCard(
+                        feeder,
+                        isSelected,
+                        () {
+                          feederController.selectFeeder(feeder);
+                        },
+                        () {
+                          _showRemoveFeederDialog(feederController, feeder);
+                        },
+                        theme,
+                      );
+                    },
+                  ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Botões de ação
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const ProvisioningScreen()),
+                );
+              },
+              icon: const Icon(Icons.add_circle_outline),
+              label: const Text('CONFIGURAR NOVO ALIMENTADOR'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                side: BorderSide(
+                    color:
+                        themeController.primaryColor.withValues(alpha: 0.5)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFeederCard(
+    FeederModel feeder,
+    bool isSelected,
+    VoidCallback onTap,
+    VoidCallback onRemove,
+    ThemeData theme,
+  ) {
+    final Color statusColor;
+    final IconData statusIcon;
+    final String statusLabel;
+
+    switch (feeder.status) {
+      case FeederStatus.online:
+        statusColor = Colors.green;
+        statusIcon = Icons.wifi_tethering;
+        statusLabel = 'Online';
+        break;
+      case FeederStatus.offline:
+        statusColor = Colors.red;
+        statusIcon = Icons.wifi_off;
+        statusLabel = 'Offline';
+        break;
+      default:
+        statusColor = Colors.grey;
+        statusIcon = Icons.sync;
+        statusLabel = 'Verificando...';
+    }
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? statusColor.withValues(alpha: 0.08)
+              : theme.brightness == Brightness.dark
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : Colors.black.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? statusColor.withValues(alpha: 0.5)
+                : statusColor.withValues(alpha: 0.15),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            // Status indicator circle
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(statusIcon, color: statusColor, size: 20),
+            ),
+            const SizedBox(width: 12),
+            // Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        feeder.name,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: statusColor,
+                        ),
+                      ),
+                      if (isSelected) ...[
+                        const SizedBox(width: 8),
+                        Icon(Icons.check_circle,
+                            size: 16, color: statusColor),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'ID: ${feeder.id} • $statusLabel',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  Text(
+                    'Visto: ${feeder.lastSeen}',
+                    style: theme.textTheme.bodySmall?.copyWith(fontSize: 10),
+                  ),
+                ],
+              ),
+            ),
+            // Remove button (only for non-default)
+            if (feeder.id != 'alimentador_01')
+              IconButton(
+                icon: Icon(Icons.delete_outline, color: statusColor.withValues(alpha: 0.6), size: 20),
+                onPressed: onRemove,
+                tooltip: 'Remover',
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showRemoveFeederDialog(
+    FeederController controller,
+    FeederModel feeder,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Remover Alimentador'),
+        content: Text('Deseja remover "${feeder.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              controller.removeFeeder(feeder);
+              Navigator.pop(ctx);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Remover'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildManualFeedView(
+    BuildContext context,
+    ThemeData theme,
+    ThemeController themeController,
+    HomeController homeController,
+    FeederController feederController,
+  ) {
+    final selectedFeeder = feederController.selectedFeeder!;
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Connected status with selected feeder
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(16),
+                border:
+                    Border.all(color: Colors.green.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.wifi_tethering,
+                        color: Colors.green, size: 28),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Conectado',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          selectedFeeder.name,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Botão de voltar
+                  TextButton.icon(
+                    onPressed: () {
+                      feederController.deselectFeeder();
+                    },
+                    icon: const Icon(Icons.swap_horiz, size: 18),
+                    label: const Text('Trocar'),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 32),
+
+            // Manual feeding
+            Text(
+              'Alimentação Manual',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: themeController.primaryColor,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            TextField(
+              controller: _gramsController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Quantidade (gramas)',
+                hintText: 'Ex: 50',
+                suffixText: 'g',
+                border: OutlineInputBorder(),
+              ),
+              enabled: !_isLoading,
+            ),
+
+            const SizedBox(height: 16),
+
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed:
+                    !_isLoading ? () => _performManualFeed(homeController) : null,
+                icon: _isLoading
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Icon(Icons.send_rounded),
+                label: Text(_isLoading ? 'ENVIANDO...' : 'ALIMENTAR AGORA'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: themeController.primaryColor,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  textStyle: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

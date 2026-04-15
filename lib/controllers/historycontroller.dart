@@ -1,27 +1,33 @@
 import 'dart:async';
-import 'dart:convert'; // Necessário para jsonEncode/jsonDecode
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Necessário para salvar no disco
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:appetite/models/historyentrymodel.dart';
 import 'package:uuid/uuid.dart';
 
 class HistoryController extends ChangeNotifier {
   final Uuid _uuid = const Uuid();
-  
-  // Lista privada de histórico (Inicia vazia e carrega do disco)
-  List<HistoryEntry> _history = []; 
+  List<HistoryEntry> _history = [];
 
   HistoryController() {
-    _loadHistory(); // Carrega o histórico assim que o controller nasce
+    _loadHistory();
   }
 
-  // Getter que retorna a lista ordenada pela data mais recente
-  List<HistoryEntry> get history {
+  // Histórico completo
+  List<HistoryEntry> _sortedHistory() {
     _history.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     return _history;
   }
 
-  // --- MÉTODOS DE PERSISTÊNCIA ---
+  // Histórico por alimentador
+  List<HistoryEntry> getHistoryForFeeder(String? feederId) {
+    final sorted = _sortedHistory();
+    if (feederId == null) return sorted;
+    return sorted.where((e) => e.feederId == feederId).toList();
+  }
+
+  // getter antigo mantido por compatibilidade
+  List<HistoryEntry> get history => _sortedHistory();
 
   Future<void> _loadHistory() async {
     try {
@@ -30,7 +36,6 @@ class HistoryController extends ChangeNotifier {
 
       if (historyString != null) {
         final List<dynamic> decodedList = jsonDecode(historyString);
-        // Converte a lista de JSON de volta para objetos HistoryEntry
         _history = decodedList.map((item) => HistoryEntry.fromJson(item)).toList();
         notifyListeners();
       }
@@ -42,16 +47,10 @@ class HistoryController extends ChangeNotifier {
   Future<void> _saveHistory() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
-      // Limpeza Automática: Mantém apenas os 50 itens mais recentes para economizar memória
       if (_history.length > 50) {
-         // Ordena para garantir que os antigos fiquem no fim
-         _history.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-         // Corta a lista mantendo apenas os 50 primeiros (mais novos)
-         _history = _history.sublist(0, 50);
+        _history.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+        _history = _history.sublist(0, 50);
       }
-
-      // Converte a lista de objetos para JSON String
       final String encodedList = jsonEncode(_history.map((e) => e.toJson()).toList());
       await prefs.setString('saved_history', encodedList);
     } catch (e) {
@@ -59,12 +58,11 @@ class HistoryController extends ChangeNotifier {
     }
   }
 
-  // --- MÉTODOS PÚBLICOS ---
-
   void addEntry({
     required HistoryType type,
     required String description,
     double? gramsDispensed,
+    String? feederId,
   }) {
     final newEntry = HistoryEntry(
       id: _uuid.v4(),
@@ -72,14 +70,13 @@ class HistoryController extends ChangeNotifier {
       type: type,
       description: description,
       gramsDispensed: gramsDispensed,
+      feederId: feederId,
     );
-    
     _history.add(newEntry);
-    _saveHistory(); // Salva no disco imediatamente
+    _saveHistory();
     notifyListeners();
   }
-  
-  // Limpa o histórico da memória e do disco
+
   void clearHistory() async {
     _history.clear();
     final prefs = await SharedPreferences.getInstance();
@@ -91,5 +88,4 @@ class HistoryController extends ChangeNotifier {
     _history.clear();
     notifyListeners();
   }
-  
 }

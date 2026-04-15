@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:convert'; 
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,14 +17,32 @@ class AlarmController extends ChangeNotifier {
   final HomeController homeController;
   final HistoryController historyController;
 
+  // Feeder atualmente selecionado para alarmes
+  String? _currentFeederId;
+  String? get currentFeederId => _currentFeederId;
+
   final Set<String> _triggeredAlarmsToday = {};
   int _lastCheckedMinute = -1;
   bool _hasSentAlarmsOnConnect = false;
-  
   bool _isDataLoaded = false;
 
   List<Alarm> _alarms = [];
   List<Alarm> get alarms => _alarms;
+
+  // Alarmes do feeder ativo
+  List<Alarm> get alarmsForCurrentFeeder {
+    if (_currentFeederId == null) return [];
+    return _alarms.where((a) => a.feederId == _currentFeederId).toList();
+  }
+
+  void setCurrentFeeder(String feederId) {
+    _currentFeederId = feederId;
+    _hasSentAlarmsOnConnect = false;
+    if (homeController.isConnected) {
+      _sendAlarmsToEsp32();
+    }
+    notifyListeners();
+  }
 
   AlarmController({
     required this.homeController,
@@ -37,22 +55,18 @@ class AlarmController extends ChangeNotifier {
     await _loadAlarms();
     _startMonitoring();
     homeController.addListener(_onHomeStatusChanged);
-    
-    if (homeController.status == ConnectionStatus.connected) {
+    if (homeController.isConnected) {
       _onHomeStatusChanged();
     }
   }
 
-  // ---  RESET DE FÁBRICA ---
   void resetToDefaults() {
-    _alarms.clear(); // Limpa lista da memória
-    _saveAlarmsLocal(); // Limpa do disco (salva lista vazia)
-    notifyListeners(); // Atualiza a tela
-    _sendAlarmsToEsp32(); // Avisa o ESP32 para limpar também
+    _alarms.clear();
+    _saveAlarmsLocal();
+    notifyListeners();
+    _sendAlarmsToEsp32();
     if (kDebugMode) print('AlarmController: Resetado para os padrões de fábrica.');
   }
-
-  // --- PERSISTÊNCIA ---
 
   Future<void> _loadAlarms() async {
     try {
@@ -81,16 +95,14 @@ class AlarmController extends ChangeNotifier {
     }
   }
 
-  // --- CONEXÃO ---
-
   void _onHomeStatusChanged() {
-    if (homeController.status == ConnectionStatus.connected && _isDataLoaded) {
-      if (!_hasSentAlarmsOnConnect) {
+    if (homeController.isConnected && _isDataLoaded) {
+      if (!_hasSentAlarmsOnConnect && _currentFeederId != null) {
         _sendAlarmsToEsp32();
         _hasSentAlarmsOnConnect = true;
       }
     } else {
-      if (homeController.status != ConnectionStatus.connected) {
+      if (!homeController.isConnected) {
         _hasSentAlarmsOnConnect = false;
       }
     }
@@ -98,11 +110,13 @@ class AlarmController extends ChangeNotifier {
 
   void _sendAlarmsToEsp32() {
     if (!_isDataLoaded) return;
-    if (homeController.status != ConnectionStatus.connected) return;
+    if (!homeController.isConnected) return;
+    if (_currentFeederId == null) return;
 
     try {
+      final feederAlarms = _alarms.where((a) => a.feederId == _currentFeederId).toList();
       final List<Map<String, dynamic>> alarmsJsonList =
-          _alarms.map((alarm) => alarm.toJson()).toList();
+          feederAlarms.map((alarm) => alarm.toJson()).toList();
       final String alarmsJson = jsonEncode(alarmsJsonList);
       homeController.sendAlarmConfiguration(alarmsJson);
     } catch (e) {
@@ -110,7 +124,6 @@ class AlarmController extends ChangeNotifier {
     }
   }
 
-  // --- MONITORAMENTO ---
   void _startMonitoring() {
     _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
       _checkAlarms();
@@ -138,15 +151,17 @@ class AlarmController extends ChangeNotifier {
     final todayKey = "${alarm.id}_${DateTime.now().day}";
     if (_triggeredAlarmsToday.contains(todayKey)) return;
 
+    String feederLabel = alarm.feederId;
     String timeString = "${alarm.time.hour}:${alarm.time.minute}";
     NotificationService().showAlarmNotification(
       title: 'Hora de comer! 🐾',
-      body: 'Horário programado: $timeString.',
+      body: 'Alarme do $feederLabel às $timeString.',
     );
     historyController.addEntry(
       type: HistoryType.alarm,
-      description: 'Alarme do app disparado ($timeString).',
+      description: 'Alarme do app disparado ($timeString) — $feederLabel',
       gramsDispensed: alarm.grams,
+      feederId: alarm.feederId,
     );
     _triggeredAlarmsToday.add(todayKey);
   }
@@ -161,7 +176,14 @@ class AlarmController extends ChangeNotifier {
   // --- CRUD ---
 
   void addAlarm({required TimeOfDay time, required double grams, required List<int> days}) {
-    final newAlarm = Alarm(id: _uuid.v4(), time: time, grams: grams, repeatDays: days);
+    final feederId = _currentFeederId ?? 'alimentador_01';
+    final newAlarm = Alarm(
+      id: _uuid.v4(),
+      feederId: feederId,
+      time: time,
+      grams: grams,
+      repeatDays: days,
+    );
     _alarms.add(newAlarm);
     notifyListeners();
     _saveAlarmsLocal();

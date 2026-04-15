@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class Alarm {
   final String id;
+  final String feederId;
   TimeOfDay time;
   double grams;
   List<int> repeatDays;
@@ -10,6 +11,7 @@ class Alarm {
 
   Alarm({
     required this.id,
+    required this.feederId,
     required this.time,
     required this.grams,
     required this.repeatDays,
@@ -21,6 +23,7 @@ class Alarm {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'feederId': feederId,
       'hour': time.hour,
       'minute': time.minute,
       'grams': grams,
@@ -30,10 +33,11 @@ class Alarm {
     };
   }
 
-  // Converte de JSON (Ler) -> NOVO MÉTODO
+  // Converte de JSON (Ler)
   factory Alarm.fromJson(Map<String, dynamic> json) {
     return Alarm(
       id: json['id'],
+      feederId: json['feederId'] as String? ?? 'alimentador_01',
       time: TimeOfDay(hour: json['hour'], minute: json['minute']),
       grams: (json['grams'] as num).toDouble(),
       repeatDays: List<int>.from(json['repeatDays']),
@@ -41,9 +45,10 @@ class Alarm {
       isRepeatingWeekly: json['isRepeatingWeekly'],
     );
   }
-  // Método para criar uma cópia do objeto (útil para edição)
+
   Alarm copyWith({
     String? id,
+    String? feederId,
     TimeOfDay? time,
     double? grams,
     List<int>? repeatDays,
@@ -52,6 +57,7 @@ class Alarm {
   }) {
     return Alarm(
       id: id ?? this.id,
+      feederId: feederId ?? this.feederId,
       time: time ?? this.time,
       grams: grams ?? this.grams,
       repeatDays: repeatDays ?? this.repeatDays,
@@ -59,6 +65,4 @@ class Alarm {
       isRepeatingWeekly: isRepeatingWeekly ?? this.isRepeatingWeekly,
     );
   }
-
-  
 }

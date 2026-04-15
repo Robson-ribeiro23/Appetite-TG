@@ -8,6 +8,7 @@ import 'package:appetite/controllers/alarmcontroller.dart';
 import 'package:appetite/controllers/homecontroller.dart';
 import 'package:appetite/controllers/historycontroller.dart';
 import 'package:appetite/controllers/provisioningcontroller.dart';
+import 'package:appetite/controllers/feedercontroller.dart';
 import 'package:appetite/core/theme/apptheme.dart';
 import 'package:appetite/views/mainscreen.dart';
 
@@ -20,16 +21,20 @@ void main() async {
       providers: [
         // 1. Controllers Independentes
         ChangeNotifierProvider(create: (_) => ThemeController()),
-        ChangeNotifierProvider(create: (_) => HistoryController()), // O Histórico nasce aqui
+        ChangeNotifierProvider(create: (_) => HistoryController()),
+        ChangeNotifierProvider(create: (_) => FeederController()),
 
-        // 2. HomeController agora depende de HistoryController
-        ChangeNotifierProxyProvider<HistoryController, HomeController>(
+        // 2. HomeController depende de FeederController e HistoryController
+        ChangeNotifierProxyProvider2<FeederController, HistoryController, HomeController>(
           create: (context) => HomeController(
+            feederController: Provider.of<FeederController>(context, listen: false),
             historyController: Provider.of<HistoryController>(context, listen: false),
           ),
-          update: (context, historyCtrl, previousHomeCtrl) {
-            // Se já existir, mantemos; se não, cria um novo passando o histórico
-            return previousHomeCtrl ?? HomeController(historyController: historyCtrl);
+          update: (context, feederCtrl, historyCtrl, previousHomeCtrl) {
+            return previousHomeCtrl ?? HomeController(
+              feederController: feederCtrl,
+              historyController: historyCtrl,
+            );
           },
         ),
 
@@ -47,13 +52,13 @@ void main() async {
           },
         ),
 
-        // 4. ProvisioningController depende de Home
-        ChangeNotifierProxyProvider<HomeController, ProvisioningController>(
+        // 4. ProvisioningController depende de FeederController
+        ChangeNotifierProxyProvider<FeederController, ProvisioningController>(
           create: (context) => ProvisioningController(
-            homeController: Provider.of<HomeController>(context, listen: false),
+            feederController: Provider.of<FeederController>(context, listen: false),
           ),
-          update: (context, homeCtrl, previousProvCtrl) {
-            return previousProvCtrl ?? ProvisioningController(homeController: homeCtrl);
+          update: (context, feederCtrl, previousProvCtrl) {
+            return previousProvCtrl ?? ProvisioningController(feederController: feederCtrl);
           },
         ),
       ],
@@ -68,28 +73,25 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeController = Provider.of<ThemeController>(context);
-    
+
     return MaterialApp(
       title: 'Appetite',
       debugShowCheckedModeBanner: false,
-      
-      // Tema Claro
+
       theme: buildAppTheme(
         themeController.primaryColor,
         themeController.fontSizeFactor,
         Brightness.light,
       ),
-      
-      // Tema Escuro
+
       darkTheme: buildAppTheme(
         themeController.primaryColor,
         themeController.fontSizeFactor,
         Brightness.dark,
       ),
-      
-      // O controlador decide qual usar
+
       themeMode: themeController.themeMode,
-      
+
       home: const MainScreen(),
     );
   }
