@@ -7,7 +7,8 @@ class ProvisioningService {
   static const String apUrl = 'http://192.168.4.1/config';
 
   /// Envia o SSID e a senha do Wi-Fi doméstico do usuário para o ESP32.
-  Future<bool> sendCredentials(String ssid, String password) async {
+  Future<bool> sendCredentials(
+      String ssid, String password, String deviceId) async {
     try {
       final response = await http.post(
         Uri.parse(apUrl),
@@ -15,6 +16,7 @@ class ProvisioningService {
         body: {
           'ssid': ssid,
           'password': password,
+          'id': deviceId,
         },
       );
 
@@ -24,12 +26,14 @@ class ProvisioningService {
         return true;
       } else {
         // Log detalhado de falha de comunicação
-        debugPrint("Provisioning Failure: Status ${response.statusCode}, Body: ${response.body}");
+        debugPrint(
+            "Provisioning Failure: Status ${response.statusCode}, Body: ${response.body}");
         return false;
       }
     } catch (e) {
       // Falha de rede: geralmente significa que o celular não está conectado ao AP do ESP32
-      debugPrint("Provisioning Error: Celular não conectado ao AP do ESP32 (192.168.4.1 inacessível). Erro: $e");
+      debugPrint(
+          "Provisioning Error: Celular não conectado ao AP do ESP32 (192.168.4.1 inacessível). Erro: $e");
       return false;
     }
   }

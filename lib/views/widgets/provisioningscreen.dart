@@ -24,6 +24,7 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
   Future<void> _confirmAndStart() async {
     final id = _idController.text.trim();
     final name = _nameController.text.trim();
+
     if (id.isEmpty || name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Preencha o ID e nome do alimentador.')),
@@ -45,7 +46,7 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
     // Inicia provisioning
     if (mounted) {
       Provider.of<ProvisioningController>(context, listen: false)
-          .startSetup(name);
+          .startSetup(id, name);
     }
   }
 
@@ -69,11 +70,10 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
                     Text(
                       controller.message,
                       textAlign: TextAlign.center,
-                      style:
-                          Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: isDark ? Colors.white : Colors.black87,
-                                height: 1.5,
-                              ),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: isDark ? Colors.white : Colors.black87,
+                            height: 1.5,
+                          ),
                     ),
                     const SizedBox(height: 40),
 
@@ -124,14 +124,18 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
                       const SizedBox.shrink(),
 
                     // Formulário de credenciais
-                    if (controller.state == ProvisioningState.userConnectingToAp ||
-                        controller.state == ProvisioningState.sendingCredentials ||
+                    if (controller.state ==
+                            ProvisioningState.userConnectingToAp ||
+                        controller.state ==
+                            ProvisioningState.sendingCredentials ||
                         controller.state == ProvisioningState.failure)
                       _BuildCredentialForm(controller: controller),
 
                     // Indicador de carregamento
-                    if (controller.state == ProvisioningState.sendingCredentials ||
-                        controller.state == ProvisioningState.waitingForWifiConnection)
+                    if (controller.state ==
+                            ProvisioningState.sendingCredentials ||
+                        controller.state ==
+                            ProvisioningState.waitingForWifiConnection)
                       const Padding(
                         padding: EdgeInsets.all(20.0),
                         child: Center(child: CircularProgressIndicator()),
@@ -162,7 +166,8 @@ class _ProvisioningScreenState extends State<ProvisioningScreen> {
                         padding: const EdgeInsets.only(top: 8.0),
                         child: TextButton(
                           onPressed: controller.reset,
-                          child: const Text('Tentar Novamente (Reiniciar Setup)'),
+                          child:
+                              const Text('Tentar Novamente (Reiniciar Setup)'),
                         ),
                       ),
                   ],
@@ -296,9 +301,8 @@ class __BuildCredentialFormState extends State<_BuildCredentialForm> {
             border: const OutlineInputBorder(),
             prefixIcon: const Icon(Icons.lock_outline_rounded),
             suffixIcon: IconButton(
-              icon: Icon(_obscureText
-                  ? Icons.visibility_off
-                  : Icons.visibility),
+              icon:
+                  Icon(_obscureText ? Icons.visibility_off : Icons.visibility),
               onPressed: () {
                 setState(() {
                   _obscureText = !_obscureText;
@@ -310,22 +314,23 @@ class __BuildCredentialFormState extends State<_BuildCredentialForm> {
         ),
         const SizedBox(height: 24),
         ElevatedButton(
-          onPressed: widget.controller.state == ProvisioningState.sendingCredentials
-              ? null
-              : () {
-                  if (_ssidController.text.isEmpty ||
-                      _passwordController.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Preencha o SSID e a senha.')),
-                    );
-                    return;
-                  }
-                  widget.controller.sendWifiCredentials(
-                    _ssidController.text,
-                    _passwordController.text,
-                  );
-                },
+          onPressed:
+              widget.controller.state == ProvisioningState.sendingCredentials
+                  ? null
+                  : () {
+                      if (_ssidController.text.isEmpty ||
+                          _passwordController.text.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Preencha o SSID e a senha.')),
+                        );
+                        return;
+                      }
+                      widget.controller.sendWifiCredentials(
+                        _ssidController.text,
+                        _passwordController.text,
+                      );
+                    },
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 16),
             backgroundColor: Theme.of(context).primaryColor,

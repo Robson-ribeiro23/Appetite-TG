@@ -20,6 +20,7 @@ class ProvisioningController extends ChangeNotifier {
   final FeederController feederController;
 
   String _feederName = 'Alimentador 01';
+  String _feederId = '';
 
   ProvisioningController({required this.feederController});
 
@@ -28,7 +29,8 @@ class ProvisioningController extends ChangeNotifier {
 
   static const String esp32ApName = 'Appetite_SETUP';
 
-  void startSetup(String name) {
+  void startSetup(String id, String name) {
+    _feederId = id;
     _feederName = name;
     _state = ProvisioningState.userConnectingToAp;
     _message =
@@ -42,7 +44,7 @@ class ProvisioningController extends ChangeNotifier {
         '2. Enviando credenciais do Wi-Fi doméstico para o dispositivo ($_feederName)...';
     notifyListeners();
 
-    bool success = await _service.sendCredentials(ssid, password);
+    bool success = await _service.sendCredentials(ssid, password, _feederId);
 
     if (success) {
       _state = ProvisioningState.waitingForWifiConnection;

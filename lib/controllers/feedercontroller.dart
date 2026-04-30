@@ -53,8 +53,7 @@ class FeederController extends ChangeNotifier {
 
   void onMessage({required String topic, required String payload}) {
     for (final feeder in _feeders) {
-      if (topic.contains(feeder.mqttTopicPrefix) ||
-          topic.contains(feeder.id)) {
+      if (topic.contains(feeder.mqttTopicPrefix) || topic.contains(feeder.id)) {
         if (payload.contains('online') ||
             payload.contains('alimentando') ||
             payload.contains('sucesso') ||
@@ -82,15 +81,7 @@ class FeederController extends ChangeNotifier {
         _feeders.add(FeederModel.fromJson(item));
       }
     }
-    // Se nenhum feeder salvo, adicionar o padrao
-    if (_feeders.isEmpty) {
-      _feeders.add(FeederModel(
-        id: 'alimentador_01',
-        name: 'Alimentador 01',
-        mqttTopicPrefix: 'appetite/device/alimentador_01',
-        status: FeederStatus.unknown,
-      ));
-    }
+
     _startMqttConnection();
     notifyListeners();
   }
@@ -203,7 +194,13 @@ class FeederController extends ChangeNotifier {
   }
 
   Future<void> removeFeeder(FeederModel feeder) async {
-    if (feeder.id == 'alimentador_01') return;
+    // 1. Manda a ordem de "autodestruição" para o ESP32 esquecer o Wi-Fi
+    _service.publishCommand(
+      topic: '${feeder.mqttTopicPrefix}/command/manual',
+      payload: '{"factory_reset": true}',
+    );
+
+    // 2. Remove do aplicativo
     _feeders.remove(feeder);
     if (_selectedFeeder?.id == feeder.id) {
       _selectedFeeder = null;

@@ -89,21 +89,17 @@ class _HomeTabState extends State<HomeTab> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final themeController = Provider.of<ThemeController>(context);
-    final feederController =
-        Provider.of<FeederController>(context);
-    final homeController =
-        Provider.of<HomeController>(context);
+    final feederController = Provider.of<FeederController>(context);
+    final homeController = Provider.of<HomeController>(context);
 
     // Tela de carregamento: mostra spinner enquanto busca alimentadores
-    bool shouldShowLoading =
-        feederController.connectionState == FeederConnectionState.discovering &&
-            feederController.feeders.every(
-                (f) => f.status != FeederStatus.online);
+    bool shouldShowLoading = feederController.connectionState ==
+            FeederConnectionState.discovering &&
+        feederController.feeders.every((f) => f.status != FeederStatus.online);
 
     if (shouldShowLoading) {
       return _buildLoadingScreen(theme, themeController.primaryColor);
@@ -221,8 +217,7 @@ class _HomeTabState extends State<HomeTab> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.refresh),
-                  onPressed: () =>
-                      feederController.rediscoverFeeders(),
+                  onPressed: () => feederController.rediscoverFeeders(),
                   tooltip: 'Verificar novamente',
                 ),
               ],
@@ -280,8 +275,7 @@ class _HomeTabState extends State<HomeTab> {
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 side: BorderSide(
-                    color:
-                        themeController.primaryColor.withValues(alpha: 0.5)),
+                    color: themeController.primaryColor.withValues(alpha: 0.5)),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
@@ -368,8 +362,7 @@ class _HomeTabState extends State<HomeTab> {
                       ),
                       if (isSelected) ...[
                         const SizedBox(width: 8),
-                        Icon(Icons.check_circle,
-                            size: 16, color: statusColor),
+                        Icon(Icons.check_circle, size: 16, color: statusColor),
                       ],
                     ],
                   ),
@@ -386,12 +379,13 @@ class _HomeTabState extends State<HomeTab> {
               ),
             ),
             // Remove button (only for non-default)
-            if (feeder.id != 'alimentador_01')
-              IconButton(
-                icon: Icon(Icons.delete_outline, color: statusColor.withValues(alpha: 0.6), size: 20),
-                onPressed: onRemove,
-                tooltip: 'Remover',
-              ),
+
+            IconButton(
+              icon: Icon(Icons.delete_outline,
+                  color: statusColor.withValues(alpha: 0.6), size: 20),
+              onPressed: onRemove,
+              tooltip: 'Remover',
+            ),
           ],
         ),
       ),
@@ -450,8 +444,7 @@ class _HomeTabState extends State<HomeTab> {
               decoration: BoxDecoration(
                 color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
-                border:
-                    Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -527,8 +520,9 @@ class _HomeTabState extends State<HomeTab> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed:
-                    !_isLoading ? () => _performManualFeed(homeController) : null,
+                onPressed: !_isLoading
+                    ? () => _performManualFeed(homeController)
+                    : null,
                 icon: _isLoading
                     ? const SizedBox(
                         width: 24,

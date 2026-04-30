@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:appetite/controllers/themecontroller.dart';
 import 'package:appetite/controllers/alarmcontroller.dart';
 import 'package:appetite/controllers/historycontroller.dart';
+import 'package:appetite/controllers/FeederController.dart';
 // Removi o import 'appcolors.dart' que não estava sendo usado
 
 class SettingsTab extends StatelessWidget {
@@ -33,6 +34,14 @@ class SettingsTab extends StatelessWidget {
 
     if (confirm != true) return;
 
+    final feederCtrl = Provider.of<FeederController>(context, listen: false);
+    if (feederCtrl.isConnected) {
+      // Manda o comando de amnésia para o alimentador conectado
+      await feederCtrl.sendCommand('{"factory_reset": true}');
+      // Dá meio segundo para garantir que o pacote MQTT viajou pra Alemanha
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
 
@@ -42,9 +51,12 @@ class SettingsTab extends StatelessWidget {
       Provider.of<AlarmController>(context, listen: false).resetToDefaults();
       Provider.of<HistoryController>(context, listen: false).resetToDefaults();
 
+      Provider.of<FeederController>(context, listen: false).disconnect();
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Aplicativo restaurado para as configurações de fábrica.'),
+          content:
+              Text('Aplicativo restaurado para as configurações de fábrica.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -132,9 +144,7 @@ class SettingsTab extends StatelessWidget {
           title: Text(
             'Resetar Dados de Fábrica',
             style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.error,
-              fontWeight: FontWeight.bold
-            ),
+                color: theme.colorScheme.error, fontWeight: FontWeight.bold),
           ),
           subtitle: Text(
             'Apaga alarmes, histórico e configurações.',
@@ -146,7 +156,8 @@ class SettingsTab extends StatelessWidget {
     );
   }
 
-  void _showColorPickerDialog(BuildContext context, ThemeController controller) {
+  void _showColorPickerDialog(
+      BuildContext context, ThemeController controller) {
     Color pickerColor = controller.primaryColor;
     showDialog(
       context: context,
